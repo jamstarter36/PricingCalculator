@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const GREEN = "#8DC63F";
 const GREEN_DARK = "#5A8A1A";
@@ -10,23 +10,110 @@ const WHITE = "#FFFFFF";
 const parse = v => parseFloat(v) || 0;
 const fmt = n => `₱${isNaN(n) || !isFinite(n) ? "0.00" : n.toFixed(2)}`;
 
+// ── Donut Chart ──────────────────────────────────────────────────────────────
+function DonutChart({ materialTotal, laborTotal, otherTotal }) {
+  const canvasRef = useRef(null);
+  const total = materialTotal + laborTotal + otherTotal;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const size = canvas.width;
+    const cx = size / 2, cy = size / 2, r = size * 0.35, lineW = size * 0.16;
+
+    ctx.clearRect(0, 0, size, size);
+
+    if (total === 0) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.strokeStyle = "#E0DDD0";
+      ctx.lineWidth = lineW;
+      ctx.stroke();
+      ctx.fillStyle = "#9A9585";
+      ctx.font = `bold ${size * 0.1}px Nunito, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("No data", cx, cy);
+      return;
+    }
+
+    const segments = [
+      { value: materialTotal, color: "#C0392B" },
+      { value: laborTotal,   color: "#E8A0A8" },
+      { value: otherTotal,   color: "#F5C6CB" },
+    ];
+
+    let start = -Math.PI / 2;
+    segments.forEach(seg => {
+      if (seg.value <= 0) return;
+      const sweep = (seg.value / total) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, start, start + sweep);
+      ctx.strokeStyle = seg.color;
+      ctx.lineWidth = lineW;
+      ctx.stroke();
+      start += sweep;
+    });
+
+    ctx.fillStyle = DARK;
+    ctx.font = `bold ${size * 0.1}px Nunito, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(fmt(total), cx, cy);
+  }, [materialTotal, laborTotal, otherTotal, total]);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+      <canvas ref={canvasRef} width={160} height={160} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
+        {[
+          { label: "Materials", color: "#C0392B", value: materialTotal },
+          { label: "Labor",     color: "#E8A0A8", value: laborTotal },
+          { label: "Other",     color: "#F5C6CB", value: otherTotal },
+        ].map((s, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+            <span style={{ width: 10, height: 10, borderRadius: 2, background: s.color, flexShrink: 0 }} />
+            <span style={{ color: "#6B6860", flex: 1 }}>{s.label}</span>
+            <span style={{ fontWeight: 700, color: DARK }}>{total > 0 ? ((s.value / total) * 100).toFixed(1) + "%" : "0%"}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Small helpers ─────────────────────────────────────────────────────────────
 function Label({ children, hint }) {
   return (
-    <div style={{ marginBottom: 6 }}>
+    <div style={{ marginBottom: 4 }}>
       <span style={{ fontSize: 11, fontWeight: 800, color: "#5A5850", letterSpacing: 1, textTransform: "uppercase" }}>{children}</span>
       {hint && <span style={{ fontSize: 11, color: "#9A9585", marginLeft: 6 }}>{hint}</span>}
     </div>
   );
 }
 
-function NumInput({ prefix, suffix, value, onChange, placeholder = "0" }) {
+function NumInput({ prefix, suffix, value, onChange, placeholder = "0", small }) {
   return (
-    <div style={{ display: "flex", alignItems: "stretch", background: CREAM, border: "2px solid #D8D5C5", borderRadius: 10, overflow: "hidden" }}>
-      {prefix && <span style={{ padding: "0 10px", fontSize: 13, fontWeight: 700, color: GREEN_DARK, background: "#E8F5D0", borderRight: "1px solid #D8D5C5", display: "flex", alignItems: "center" }}>{prefix}</span>}
-      <input type="number" min="0" step="any" value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)}
-        style={{ flex: 1, minWidth: 0, padding: "10px 10px", border: "none", background: "transparent", fontFamily: "'Fredoka One', cursive", fontSize: 16, color: DARK, outline: "none", width: "100%" }} />
-      {suffix && <span style={{ padding: "0 10px", fontSize: 12, color: "#9A9585", display: "flex", alignItems: "center", background: CREAM, whiteSpace: "nowrap" }}>{suffix}</span>}
+    <div style={{ display: "flex", alignItems: "stretch", background: CREAM, border: "2px solid #D8D5C5", borderRadius: 8, overflow: "hidden" }}>
+      {prefix && <span style={{ padding: "0 8px", fontSize: 12, fontWeight: 700, color: GREEN_DARK, background: "#E8F5D0", borderRight: "1px solid #D8D5C5", display: "flex", alignItems: "center" }}>{prefix}</span>}
+      <input
+        type="number" min="0" step="any" value={value} placeholder={placeholder}
+        onChange={e => onChange(e.target.value)}
+        style={{ flex: 1, minWidth: 0, padding: small ? "6px 6px" : "8px 8px", border: "none", background: "transparent", fontFamily: "'Fredoka One', cursive", fontSize: small ? 13 : 14, color: DARK, outline: "none", width: "100%" }}
+      />
+      {suffix && <span style={{ padding: "0 8px", fontSize: 11, color: "#9A9585", display: "flex", alignItems: "center", background: CREAM, whiteSpace: "nowrap" }}>{suffix}</span>}
     </div>
+  );
+}
+
+function TxtInput({ value, onChange, placeholder, small }) {
+  return (
+    <input
+      type="text" value={value} placeholder={placeholder}
+      onChange={e => onChange(e.target.value)}
+      style={{ width: "100%", padding: small ? "6px 8px" : "8px 10px", border: "2px solid #D8D5C5", borderRadius: 8, fontFamily: "'Nunito', sans-serif", fontSize: small ? 12 : 13, color: DARK, background: CREAM, outline: "none", boxSizing: "border-box" }}
+    />
   );
 }
 
@@ -42,11 +129,11 @@ function Section({ title, emoji, children }) {
   );
 }
 
-function TotalRow({ label, value }) {
+function TotalRow({ label, value, highlight }) {
   return (
-    <div style={{ background: "#F0F9E0", border: `1.5px solid ${GREEN}`, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-      <span style={{ fontWeight: 800, fontSize: 13, color: GREEN_DARK }}>{label}</span>
-      <span style={{ fontFamily: "'Fredoka One', cursive", fontSize: 16, color: GREEN_DARK, whiteSpace: "nowrap" }}>{value}</span>
+    <div style={{ background: highlight ? GREEN : "#F0F9E0", border: `1.5px solid ${highlight ? GREEN_DARK : GREEN}`, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+      <span style={{ fontWeight: 800, fontSize: 13, color: highlight ? WHITE : GREEN_DARK }}>{label}</span>
+      <span style={{ fontFamily: "'Fredoka One', cursive", fontSize: 16, color: highlight ? WHITE : GREEN_DARK, whiteSpace: "nowrap" }}>{value}</span>
     </div>
   );
 }
@@ -61,43 +148,73 @@ function StatCard({ label, value, sub, highlight }) {
   );
 }
 
-export default function PricingCalculator() {
-  const [materials, setMaterials] = useState([{ name: "Chicken Wings", cost: "" }]);
-  const [hourlyRate, setHourlyRate] = useState("");
-  const [hoursSpent, setHoursSpent] = useState("");
-  const [rent, setRent] = useState("");
-  const [utilities, setUtilities] = useState("");
-  const [tools, setTools] = useState("");
-  const [unitsPerMonth, setUnitsPerMonth] = useState("");
-  const [quantity, setQuantity] = useState("1");
-  const [marginPct, setMarginPct] = useState("30");
-  const [discountPct, setDiscountPct] = useState("0");
-  const [taxPct, setTaxPct] = useState("0");
+const DEFAULT_PRODUCTS = ["Chicken Wings", "Matcha Latte", "Ube Pandesal", "Cream Puff", "Biko"];
+const UNITS = ["pc", "kg", "g", "ml", "l", "cup", "tbsp", "tsp", "pack", "dozen"];
 
-  const materialTotal = materials.reduce((s, m) => s + parse(m.cost), 0);
-  const laborTotal = parse(hourlyRate) * parse(hoursSpent);
+// ── Main Component ────────────────────────────────────────────────────────────
+export default function PricingCalculator() {
+  const [selectedProduct, setSelectedProduct] = useState("");
+  const [customProduct, setCustomProduct] = useState("");
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [products, setProducts] = useState(DEFAULT_PRODUCTS);
+
+  // Material rows: { name, qty, unit, costPerUnit, unitsNeeded }
+  const [materials, setMaterials] = useState([
+    { name: "", qty: "", unit: "pc", costPerUnit: "", unitsNeeded: "" },
+  ]);
+
+  const [hourlyRate, setHourlyRate]       = useState("");
+  const [hoursSpent, setHoursSpent]       = useState("");
+  const [rent, setRent]                   = useState("");
+  const [utilities, setUtilities]         = useState("");
+  const [tools, setTools]                 = useState("");
+  const [unitsPerMonth, setUnitsPerMonth] = useState("");
+  const [quantity, setQuantity]           = useState("1");
+  const [marginPct, setMarginPct]         = useState("30");
+  const [discountPct, setDiscountPct]     = useState("0");
+  const [taxPct, setTaxPct]               = useState("0");
+
+  // cost per row = (costPerUnit / qty) * unitsNeeded
+  const matRowTotal = m => {
+    const cpu = parse(m.costPerUnit);
+    const q   = parse(m.qty);
+    const un  = parse(m.unitsNeeded);
+    if (q === 0) return 0;
+    return (cpu / q) * un;
+  };
+
+  const materialTotal   = materials.reduce((s, m) => s + matRowTotal(m), 0);
+  const laborTotal      = parse(hourlyRate) * parse(hoursSpent);
   const monthlyOverhead = parse(rent) + parse(utilities) + parse(tools);
   const overheadPerUnit = parse(unitsPerMonth) > 0 ? monthlyOverhead / parse(unitsPerMonth) : 0;
-  const costPerUnit = materialTotal + laborTotal + overheadPerUnit;
-  const marginAmt = costPerUnit * (parse(marginPct) / 100);
+  const costPerUnit     = materialTotal + laborTotal + overheadPerUnit;
+  const marginAmt       = costPerUnit * (parse(marginPct) / 100);
   const priceBeforeDiscount = costPerUnit + marginAmt;
-  const discountAmt = priceBeforeDiscount * (parse(discountPct) / 100);
-  const priceAfterDiscount = priceBeforeDiscount - discountAmt;
-  const taxAmt = priceAfterDiscount * (parse(taxPct) / 100);
-  const finalPrice = priceAfterDiscount + taxAmt;
-  const qty = Math.max(1, parse(quantity));
-  const totalRevenue = finalPrice * qty;
-  const totalCost = costPerUnit * qty;
-  const totalProfit = totalRevenue - totalCost;
+  const discountAmt     = priceBeforeDiscount * (parse(discountPct) / 100);
+  const priceAfterDiscount  = priceBeforeDiscount - discountAmt;
+  const taxAmt          = priceAfterDiscount * (parse(taxPct) / 100);
+  const finalPrice      = priceAfterDiscount + taxAmt;
+  const qty             = Math.max(1, parse(quantity));
+  const totalRevenue    = finalPrice * qty;
+  const totalCost       = costPerUnit * qty;
+  const totalProfit     = totalRevenue - totalCost;
   const profitMarginReal = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
-  const breakEven = marginAmt > 0 ? Math.ceil(monthlyOverhead / marginAmt) : null;
+  const breakEven       = marginAmt > 0 ? Math.ceil(monthlyOverhead / marginAmt) : null;
 
-  const addMaterial = () => setMaterials(m => [...m, { name: "", cost: "" }]);
-  const removeMaterial = i => setMaterials(m => m.filter((_, idx) => idx !== i));
-  const updateMat = (i, f, v) => setMaterials(m => m.map((item, idx) => idx === i ? { ...item, [f]: v } : item));
+  const addMaterial    = () => setMaterials(m => [...m, { name: "", qty: "", unit: "pc", costPerUnit: "", unitsNeeded: "" }]);
+  const removeMaterial = i  => setMaterials(m => m.filter((_, idx) => idx !== i));
+  const updateMat      = (i, f, v) => setMaterials(m => m.map((item, idx) => idx === i ? { ...item, [f]: v } : item));
+
+  const handleAddCustomProduct = () => {
+    if (!customProduct.trim()) return;
+    setProducts(p => [...p, customProduct.trim()]);
+    setSelectedProduct(customProduct.trim());
+    setCustomProduct("");
+    setShowCustomInput(false);
+  };
 
   return (
-    <div style={{ minHeight: "100vh", background: CREAM, fontFamily: "'Nunito', sans-serif", padding: "0 0 60px" }}>
+    <div style={{ minHeight: "100vh", background: CREAM, fontFamily: "'Nunito', sans-serif", paddingBottom: 60 }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&family=Protest+Riot&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -105,16 +222,19 @@ export default function PricingCalculator() {
         input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none}
         input[type=number]{-moz-appearance:textfield}
         input[type=range]{accent-color:${GREEN};width:100%;margin-top:8px}
-
+        select{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235A8A1A' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px !important;}
         .grid-2    { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .grid-3    { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
         .grid-stat { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        .mat-row   { display: grid; grid-template-columns: 1fr 130px 36px; gap: 8px; align-items: center; }
-
-        @media (max-width: 480px) {
-          .grid-3  { grid-template-columns: 1fr 1fr; }
-          .grid-2  { grid-template-columns: 1fr; }
-          .mat-row { grid-template-columns: 1fr 110px 36px; }
+        .mat-table { width: 100%; border-collapse: collapse; }
+        .mat-table th { font-size: 10px; font-weight: 800; color: #5A5850; letter-spacing: 1px; text-transform: uppercase; padding: 6px 6px; background: #F5F3EC; border-bottom: 2px solid #E0DDD0; text-align: left; white-space: nowrap; }
+        .mat-table td { padding: 5px 3px; border-bottom: 1px solid #F0EEE5; vertical-align: middle; }
+        .mat-table tr:last-child td { border-bottom: none; }
+        .mat-and-chart { display: grid; grid-template-columns: 1fr 190px; gap: 16px; align-items: start; }
+        @media (max-width: 600px) {
+          .grid-3       { grid-template-columns: 1fr 1fr; }
+          .grid-2       { grid-template-columns: 1fr; }
+          .mat-and-chart{ grid-template-columns: 1fr; }
         }
         @media (min-width: 600px) {
           .grid-stat { grid-template-columns: repeat(4, 1fr); }
@@ -130,8 +250,24 @@ export default function PricingCalculator() {
         <div style={{ fontFamily: "'Protest Riot', cursive", fontSize: "clamp(14px,3vw,22px)", color: GREEN_DARK }}>Pricing Calculator</div>
       </div>
 
+      {/* ── COGS Summary Bar ── */}
+      <div style={{ background: WHITE, borderBottom: "2px solid #E0DDD0", padding: "10px 20px", display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+        <span style={{ fontSize: 11, color: "#9A9585", fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" }}>Total cost of producing 1 product</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#FFF0F0", border: "2px solid #F5C0C0", borderRadius: 10, padding: "7px 14px" }}>
+          <span style={{ fontFamily: "'Protest Riot', cursive", fontSize: 13, color: "#9A9585" }}>COGS</span>
+          <span style={{ fontFamily: "'Protest Riot', cursive", fontSize: 20, color: RED }}>{fmt(costPerUnit)}</span>
+        </div>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, color: "#9A9585", fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" }}>Sale price for 1 product only</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#F0F9E0", border: `2px solid ${GREEN}`, borderRadius: 10, padding: "7px 14px" }}>
+            <span style={{ fontFamily: "'Protest Riot', cursive", fontSize: 13, color: GREEN_DARK }}>Selling Price</span>
+            <span style={{ fontFamily: "'Protest Riot', cursive", fontSize: 20, color: GREEN_DARK }}>{fmt(finalPrice)}</span>
+          </div>
+        </div>
+      </div>
+
       {/* ── Content ── */}
-      <div style={{ maxWidth: 860, margin: "0 auto", padding: "24px 14px", display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ maxWidth: 960, margin: "0 auto", padding: "24px 14px", display: "flex", flexDirection: "column", gap: 20 }}>
 
         {/* STAT CARDS */}
         <div className="grid-stat">
@@ -141,27 +277,130 @@ export default function PricingCalculator() {
           <StatCard label={`Total ×${qty}`} value={fmt(totalRevenue)} sub={`${fmt(totalProfit)} profit`} />
         </div>
 
-        {/* 1. MATERIALS */}
-        <Section title="Cost of Materials" emoji="🧂">
-          {materials.map((m, i) => (
-            <div key={i} className="mat-row">
-              <input value={m.name} onChange={e => updateMat(i, "name", e.target.value)} placeholder="Ingredient / item"
-                style={{ padding: "10px 12px", border: "2px solid #D8D5C5", borderRadius: 10, fontFamily: "'Nunito', sans-serif", fontSize: 14, color: DARK, background: CREAM, outline: "none", width: "100%", minWidth: 0 }} />
-              <div style={{ display: "flex", alignItems: "stretch", background: CREAM, border: "2px solid #D8D5C5", borderRadius: 10, overflow: "hidden" }}>
-                <span style={{ padding: "0 8px", fontSize: 13, fontWeight: 700, color: GREEN_DARK, background: "#E8F5D0", borderRight: "1px solid #D8D5C5", display: "flex", alignItems: "center" }}>₱</span>
-                <input type="number" min="0" step="any" value={m.cost} placeholder="0" onChange={e => updateMat(i, "cost", e.target.value)}
-                  style={{ flex: 1, minWidth: 0, padding: "10px 8px", border: "none", background: "transparent", fontFamily: "'Fredoka One', cursive", fontSize: 15, color: DARK, outline: "none", width: "100%" }} />
-              </div>
-              {materials.length > 1
-                ? <button onClick={() => removeMaterial(i)} style={{ width: 36, height: 36, borderRadius: "50%", border: "2px solid #F5C0C0", background: "#FFF0F0", color: RED, fontSize: 18, fontWeight: 900, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>×</button>
-                : <div style={{ width: 36 }} />}
+        {/* ── SELECT PRODUCT ── */}
+        <Section title="Select Product" emoji="🏷️">
+          <div style={{ fontSize: 11, color: "#C0392B", fontWeight: 700 }}>Reminder: Register products in the Products Dashboard.</div>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <Label>Product</Label>
+              <select
+                value={selectedProduct}
+                onChange={e => setSelectedProduct(e.target.value)}
+                style={{ width: "100%", padding: "10px 12px", border: "2px solid #D8D5C5", borderRadius: 10, fontFamily: "'Nunito', sans-serif", fontSize: 14, color: selectedProduct ? DARK : "#9A9585", background: CREAM, outline: "none" }}
+              >
+                <option value="">— Select a product —</option>
+                {products.map((p, i) => <option key={i} value={p}>{p}</option>)}
+              </select>
             </div>
-          ))}
-          <button onClick={addMaterial} style={{ padding: "9px 16px", border: `2px dashed ${GREEN}`, borderRadius: 10, background: "#F0F9E0", color: GREEN_DARK, fontSize: 13, fontWeight: 800, cursor: "pointer", alignSelf: "flex-start" }}>
-            + Add ingredient
-          </button>
-          <TotalRow label="Materials total" value={fmt(materialTotal)} />
+            <button
+              onClick={() => setShowCustomInput(v => !v)}
+              style={{ padding: "10px 16px", border: `2px dashed ${GREEN}`, borderRadius: 10, background: "#F0F9E0", color: GREEN_DARK, fontSize: 12, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}
+            >+ New product</button>
+          </div>
+          {showCustomInput && (
+            <div style={{ display: "flex", gap: 8 }}>
+              <TxtInput value={customProduct} onChange={setCustomProduct} placeholder="Enter new product name…" />
+              <button onClick={handleAddCustomProduct} style={{ padding: "8px 16px", background: GREEN, border: "none", borderRadius: 10, color: WHITE, fontWeight: 800, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}>Add</button>
+              <button onClick={() => { setShowCustomInput(false); setCustomProduct(""); }} style={{ padding: "8px 12px", background: "#FFF0F0", border: `2px solid #F5C0C0`, borderRadius: 10, color: RED, fontWeight: 800, fontSize: 13, cursor: "pointer" }}>✕</button>
+            </div>
+          )}
         </Section>
+
+        {/* ── PRICING SETTINGS ── */}
+        <Section title="Pricing Settings" emoji="📊">
+          <div style={{ fontSize: 11, color: "#9A9585" }}>Note: Discount and Sales Tax are optional.</div>
+          <div className="grid-3">
+            <div>
+              <Label hint={`= ${fmt(marginAmt)}/unit`}>Profit margin %</Label>
+              <NumInput suffix="%" value={marginPct} onChange={setMarginPct} />
+              <input type="range" min="0" max="100" step="1" value={marginPct} onChange={e => setMarginPct(e.target.value)} />
+            </div>
+            <div>
+              <Label hint="optional">Discount %</Label>
+              <NumInput suffix="%" value={discountPct} onChange={setDiscountPct} />
+            </div>
+            <div>
+              <Label hint="optional">Sales tax %</Label>
+              <NumInput suffix="%" value={taxPct} onChange={setTaxPct} />
+            </div>
+          </div>
+        </Section>
+
+        {/* ── MATERIAL COST TABLE + DONUT side by side ── */}
+        <div className="mat-and-chart">
+          {/* Left: material table */}
+          <Section title="Material Cost" emoji="🧂">
+            <div style={{ fontSize: 11, color: "#9A9585" }}>Enter all materials you've used to produce 1 product.</div>
+            <div style={{ overflowX: "auto" }}>
+              <table className="mat-table">
+                <thead>
+                  <tr>
+                    <th style={{ minWidth: 110 }}>List of Ingredients</th>
+                    <th style={{ width: 60 }}>#</th>
+                    <th style={{ width: 72 }}>Unit</th>
+                    <th style={{ width: 95 }}>Cost/Unit</th>
+                    <th style={{ width: 95 }}>Units Needed</th>
+                    <th style={{ width: 85 }}>Total Cost</th>
+                    <th style={{ width: 32 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {materials.map((m, i) => (
+                    <tr key={i}>
+                      <td><TxtInput value={m.name} onChange={v => updateMat(i, "name", v)} placeholder="Ingredient" small /></td>
+                      <td><NumInput value={m.qty} onChange={v => updateMat(i, "qty", v)} placeholder="0" small /></td>
+                      <td>
+                        <select
+                          value={m.unit}
+                          onChange={e => updateMat(i, "unit", e.target.value)}
+                          style={{ width: "100%", padding: "6px 8px", border: "2px solid #D8D5C5", borderRadius: 8, fontFamily: "'Nunito', sans-serif", fontSize: 12, color: DARK, background: CREAM, outline: "none" }}
+                        >
+                          {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                        </select>
+                      </td>
+                      <td>
+                        <div style={{ display: "flex", alignItems: "stretch", background: CREAM, border: "2px solid #D8D5C5", borderRadius: 8, overflow: "hidden" }}>
+                          <span style={{ padding: "0 5px", fontSize: 11, fontWeight: 700, color: GREEN_DARK, background: "#E8F5D0", borderRight: "1px solid #D8D5C5", display: "flex", alignItems: "center" }}>₱</span>
+                          <input type="number" min="0" step="any" value={m.costPerUnit} placeholder="0"
+                            onChange={e => updateMat(i, "costPerUnit", e.target.value)}
+                            style={{ flex: 1, minWidth: 0, padding: "6px 5px", border: "none", background: "transparent", fontFamily: "'Fredoka One', cursive", fontSize: 13, color: DARK, outline: "none", width: "100%" }} />
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: "flex", alignItems: "stretch", background: CREAM, border: "2px solid #D8D5C5", borderRadius: 8, overflow: "hidden" }}>
+                          <input type="number" min="0" step="any" value={m.unitsNeeded} placeholder="0"
+                            onChange={e => updateMat(i, "unitsNeeded", e.target.value)}
+                            style={{ flex: 1, minWidth: 0, padding: "6px 5px", border: "none", background: "transparent", fontFamily: "'Fredoka One', cursive", fontSize: 13, color: DARK, outline: "none", width: "100%" }} />
+                          <span style={{ padding: "0 5px", fontSize: 10, color: "#9A9585", display: "flex", alignItems: "center", background: CREAM, whiteSpace: "nowrap" }}>{m.unit}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ fontFamily: "'Fredoka One', cursive", fontSize: 13, color: GREEN_DARK, textAlign: "right", paddingRight: 4, whiteSpace: "nowrap" }}>
+                          {fmt(matRowTotal(m))}
+                        </div>
+                      </td>
+                      <td>
+                        {materials.length > 1
+                          ? <button onClick={() => removeMaterial(i)} style={{ width: 28, height: 28, borderRadius: "50%", border: "2px solid #F5C0C0", background: "#FFF0F0", color: RED, fontSize: 15, fontWeight: 900, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+                          : <div style={{ width: 28 }} />}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button onClick={addMaterial} style={{ padding: "7px 14px", border: `2px dashed ${GREEN}`, borderRadius: 10, background: "#F0F9E0", color: GREEN_DARK, fontSize: 12, fontWeight: 800, cursor: "pointer", alignSelf: "flex-start" }}>
+              + Add ingredient
+            </button>
+            <TotalRow label="Materials total" value={fmt(materialTotal)} />
+          </Section>
+
+          {/* Right: donut chart */}
+          <div style={{ background: WHITE, border: "2px solid #E0DDD0", borderRadius: 16, padding: "16px" }}>
+            <div style={{ fontFamily: "'Protest Riot', cursive", fontSize: 15, color: GREEN_DARK, marginBottom: 12, textAlign: "center" }}>Costing Breakdown</div>
+            <DonutChart materialTotal={materialTotal} laborTotal={laborTotal} otherTotal={overheadPerUnit} />
+          </div>
+        </div>
 
         {/* 2. LABOR */}
         <Section title="Labor / Time Spent" emoji="⏱️">
@@ -192,28 +431,11 @@ export default function PricingCalculator() {
           <TotalRow label={`Monthly overhead · ${fmt(overheadPerUnit)}/unit`} value={fmt(monthlyOverhead)} />
         </Section>
 
-        {/* 4. QUANTITY + MARGIN + DISCOUNT + TAX */}
-        <Section title="Quantity, Margin & Adjustments" emoji="📊">
-          <div className="grid-2">
-            <div>
-              <Label>Quantity to sell</Label>
-              <NumInput suffix="pcs" value={quantity} onChange={setQuantity} placeholder="1" />
-            </div>
-            <div>
-              <Label hint={`= ${fmt(marginAmt)}/unit`}>Profit margin</Label>
-              <NumInput suffix="%" value={marginPct} onChange={setMarginPct} />
-              <input type="range" min="0" max="100" step="1" value={marginPct} onChange={e => setMarginPct(e.target.value)} />
-            </div>
-          </div>
-          <div className="grid-2">
-            <div>
-              <Label hint="optional">Discount</Label>
-              <NumInput suffix="%" value={discountPct} onChange={setDiscountPct} />
-            </div>
-            <div>
-              <Label hint="optional">Tax / VAT</Label>
-              <NumInput suffix="%" value={taxPct} onChange={setTaxPct} />
-            </div>
+        {/* QUANTITY */}
+        <Section title="Quantity to Sell" emoji="📦">
+          <div style={{ maxWidth: 280 }}>
+            <Label>Number of units</Label>
+            <NumInput suffix="pcs" value={quantity} onChange={setQuantity} placeholder="1" />
           </div>
         </Section>
 
@@ -222,43 +444,43 @@ export default function PricingCalculator() {
           <div style={{ background: GREEN, padding: "12px 20px" }}>
             <span style={{ fontFamily: "'Protest Riot', cursive", fontSize: 22, color: WHITE }}>💰 Price Breakdown</span>
           </div>
-          <div style={{ padding: "18px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
+          <div style={{ padding: "18px 16px", display: "flex", flexDirection: "column", gap: 0 }}>
+
+            {/* Product Costing table */}
+            <div style={{ background: CREAM, borderRadius: 12, padding: "12px 16px", marginBottom: 12, border: "2px solid #E0DDD0" }}>
+              <div style={{ fontFamily: "'Protest Riot', cursive", fontSize: 15, color: GREEN_DARK, marginBottom: 8 }}>Product Costing</div>
+              {[
+                { label: "Material Cost", value: fmt(materialTotal) },
+                { label: "Labor Cost",    value: fmt(laborTotal) },
+                { label: "Other Expenses", value: fmt(overheadPerUnit) },
+              ].map((r, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: i < 2 ? "1px solid #E0DDD0" : "none", gap: 8 }}>
+                  <span style={{ fontSize: 13, color: "#6B6860" }}>{r.label}</span>
+                  <span style={{ fontFamily: "'Fredoka One', cursive", fontSize: 14, color: DARK }}>{r.value}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* COGS row */}
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "#FFF0F0", borderRadius: 8, marginBottom: 8, gap: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 800, color: RED }}>COGS (cost per unit)</span>
+              <span style={{ fontFamily: "'Fredoka One', cursive", fontSize: 16, color: RED, whiteSpace: "nowrap" }}>{fmt(costPerUnit)}</span>
+            </div>
+
+            {/* Adjustments */}
             {[
-              { label: "Materials", value: fmt(materialTotal) },
-              { label: "Labor", value: fmt(laborTotal) },
-              { label: "Overhead / unit", value: fmt(overheadPerUnit) },
+              { label: `Discount (${discountPct}%)`, value: `−${fmt(discountAmt)}`, color: parse(discountPct) > 0 ? RED : "#C0BBAD" },
+              { label: `Profit (${marginPct}%)`,     value: fmt(marginAmt),          color: GREEN_DARK },
+              { label: `Tax (${taxPct}%)`,            value: `+${fmt(taxAmt)}`,       color: parse(taxPct) > 0 ? DARK : "#C0BBAD" },
             ].map((r, i) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", borderBottom: "1px solid #F0EEE5", gap: 8 }}>
                 <span style={{ fontSize: 13, color: "#6B6860" }}>{r.label}</span>
-                <span style={{ fontFamily: "'Fredoka One', cursive", fontSize: 14, color: DARK, whiteSpace: "nowrap" }}>{r.value}</span>
+                <span style={{ fontFamily: "'Fredoka One', cursive", fontSize: 14, color: r.color, whiteSpace: "nowrap" }}>{r.value}</span>
               </div>
             ))}
 
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "#F0F9E0", borderRadius: 8, margin: "4px 0", gap: 8 }}>
-              <span style={{ fontSize: 14, fontWeight: 800, color: GREEN_DARK }}>Cost per unit</span>
-              <span style={{ fontFamily: "'Fredoka One', cursive", fontSize: 16, color: GREEN_DARK, whiteSpace: "nowrap" }}>{fmt(costPerUnit)}</span>
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", borderBottom: "1px solid #F0EEE5", gap: 8 }}>
-              <span style={{ fontSize: 13, color: "#6B6860" }}>+ Profit margin ({marginPct}%)</span>
-              <span style={{ fontFamily: "'Fredoka One', cursive", fontSize: 14, color: GREEN_DARK, whiteSpace: "nowrap" }}>+{fmt(marginAmt)}</span>
-            </div>
-
-            {parse(discountPct) > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", borderBottom: "1px solid #F0EEE5", gap: 8 }}>
-                <span style={{ fontSize: 13, color: "#6B6860" }}>− Discount ({discountPct}%)</span>
-                <span style={{ fontFamily: "'Fredoka One', cursive", fontSize: 14, color: RED, whiteSpace: "nowrap" }}>−{fmt(discountAmt)}</span>
-              </div>
-            )}
-
-            {parse(taxPct) > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", borderBottom: "1px solid #F0EEE5", gap: 8 }}>
-                <span style={{ fontSize: 13, color: "#6B6860" }}>+ Tax / VAT ({taxPct}%)</span>
-                <span style={{ fontFamily: "'Fredoka One', cursive", fontSize: 14, color: DARK, whiteSpace: "nowrap" }}>+{fmt(taxAmt)}</span>
-              </div>
-            )}
-
-            <div style={{ background: GREEN, borderRadius: 12, padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, gap: 8, flexWrap: "wrap" }}>
+            {/* Final selling price */}
+            <div style={{ background: GREEN, borderRadius: 12, padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, gap: 8, flexWrap: "wrap" }}>
               <div>
                 <div style={{ fontFamily: "'Protest Riot', cursive", fontSize: "clamp(16px,4vw,20px)", color: WHITE }}>Final Selling Price</div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 2 }}>per unit</div>
