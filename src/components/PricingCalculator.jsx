@@ -26,7 +26,7 @@ const DEFAULT_STATE = {
   marginPct: "30",
   discountPct: "0",
   taxPct: "0",
-  products: ["Chicken Wings", "Matcha Latte", "Ube Pandesal", "Cream Puff", "Biko"],
+  products: ["Chicken Wings"],
 };
 
 // ── Donut Chart ──────────────────────────────────────────────────────────────
