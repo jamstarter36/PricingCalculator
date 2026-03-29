@@ -148,7 +148,7 @@ function StatCard({ label, value, sub, highlight }) {
   );
 }
 
-const DEFAULT_PRODUCTS = ["Chicken Wings", "Matcha Latte", "Ube Pandesal", "Cream Puff", "Biko"];
+const DEFAULT_PRODUCTS = ["Chicken Wings"];
 const UNITS = ["pc", "kg", "g", "ml", "l", "cup", "tbsp", "tsp", "pack", "dozen"];
 
 // ── Main Component ────────────────────────────────────────────────────────────
