@@ -26,7 +26,7 @@ const DEFAULT_STATE = {
   marginPct: "30",
   discountPct: "0",
   taxPct: "0",
-  products: ["Chicken Wings"],
+  products: ["Chicken Wings", "Matcha Latte", "Ube Pandesal", "Cream Puff", "Biko"],
 };
 
 // ── Donut Chart ──────────────────────────────────────────────────────────────
@@ -134,12 +134,33 @@ function StatCard({ label, value, sub, highlight, big }) {
 
 const UNITS = ["pc", "kg", "g", "ml", "l", "cup", "tbsp", "tsp", "pack", "dozen"];
 
+// ── Auto-save indicator ───────────────────────────────────────────────────────
+function AutoSaveIndicator({ status }) {
+  // status: "idle" | "saving" | "saved" | "error"
+  const configs = {
+    idle:   { dot: "#D8D5C5", text: "Auto-save on",  textColor: "#9A9585" },
+    saving: { dot: "#F5A623", text: "Saving…",        textColor: "#B8860B" },
+    saved:  { dot: GREEN,     text: "All changes saved", textColor: GREEN_DARK },
+    error:  { dot: RED,       text: "Save failed",    textColor: RED },
+  };
+  const c = configs[status] || configs.idle;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <span style={{ width: 8, height: 8, borderRadius: "50%", background: c.dot, flexShrink: 0, transition: "background .3s" }} />
+      <span style={{ fontSize: 11, fontWeight: 700, color: c.textColor, whiteSpace: "nowrap", transition: "color .3s" }}>{c.text}</span>
+    </div>
+  );
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 export default function PricingCalculator() {
-  const [loaded, setLoaded]                   = useState(false);
-  const [toast, setToast]                     = useState(null); // { msg, type: "success"|"error"|"info" }
+  const [loaded, setLoaded]                     = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus]     = useState("idle"); // idle | saving | saved | error
+  const [toast, setToast]                       = useState(null);
   const [showStoragePanel, setShowStoragePanel] = useState(false);
-  const importRef                             = useRef(null);
+  const importRef                               = useRef(null);
+  const autoSaveTimer                           = useRef(null);
+  const isFirstRender                           = useRef(true);
 
   const [selectedProduct, setSelectedProduct] = useState(DEFAULT_STATE.selectedProduct);
   const [customProduct, setCustomProduct]     = useState("");
@@ -163,7 +184,7 @@ export default function PricingCalculator() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // ── Get current snapshot ──
+  // ── Snapshot ──
   const getSnapshot = useCallback(() => ({
     selectedProduct, materials, mealsPerMonth,
     hourlyRate, hoursSpent, rent, utilities, tools,
@@ -171,26 +192,26 @@ export default function PricingCalculator() {
     savedAt: new Date().toISOString(),
   }), [selectedProduct, materials, mealsPerMonth, hourlyRate, hoursSpent, rent, utilities, tools, unitsPerMonth, quantity, marginPct, discountPct, taxPct, products]);
 
-  // ── Apply saved data ──
+  // ── Apply loaded data ──
   const applyData = (saved) => {
     if (!saved) return;
     if (saved.selectedProduct !== undefined) setSelectedProduct(saved.selectedProduct);
-    if (saved.materials)      setMaterials(saved.materials);
-    if (saved.mealsPerMonth !== undefined)  setMealsPerMonth(saved.mealsPerMonth);
-    if (saved.hourlyRate !== undefined)     setHourlyRate(saved.hourlyRate);
-    if (saved.hoursSpent !== undefined)     setHoursSpent(saved.hoursSpent);
-    if (saved.rent !== undefined)           setRent(saved.rent);
-    if (saved.utilities !== undefined)      setUtilities(saved.utilities);
-    if (saved.tools !== undefined)          setTools(saved.tools);
-    if (saved.unitsPerMonth !== undefined)  setUnitsPerMonth(saved.unitsPerMonth);
-    if (saved.quantity)       setQuantity(saved.quantity);
-    if (saved.marginPct)      setMarginPct(saved.marginPct);
-    if (saved.discountPct !== undefined)    setDiscountPct(saved.discountPct);
-    if (saved.taxPct !== undefined)         setTaxPct(saved.taxPct);
-    if (saved.products)       setProducts(saved.products);
+    if (saved.materials)                     setMaterials(saved.materials);
+    if (saved.mealsPerMonth !== undefined)   setMealsPerMonth(saved.mealsPerMonth);
+    if (saved.hourlyRate !== undefined)      setHourlyRate(saved.hourlyRate);
+    if (saved.hoursSpent !== undefined)      setHoursSpent(saved.hoursSpent);
+    if (saved.rent !== undefined)            setRent(saved.rent);
+    if (saved.utilities !== undefined)       setUtilities(saved.utilities);
+    if (saved.tools !== undefined)           setTools(saved.tools);
+    if (saved.unitsPerMonth !== undefined)   setUnitsPerMonth(saved.unitsPerMonth);
+    if (saved.quantity)                      setQuantity(saved.quantity);
+    if (saved.marginPct)                     setMarginPct(saved.marginPct);
+    if (saved.discountPct !== undefined)     setDiscountPct(saved.discountPct);
+    if (saved.taxPct !== undefined)          setTaxPct(saved.taxPct);
+    if (saved.products)                      setProducts(saved.products);
   };
 
-  // ── Load from localStorage on mount ──
+  // ── Load on mount ──
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -199,104 +220,102 @@ export default function PricingCalculator() {
     setLoaded(true);
   }, []);
 
-  // ── LOCAL STORAGE: Save ──
-  const handleLocalSave = () => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(getSnapshot()));
-      showToast("✓ Saved to local storage!", "success");
-    } catch (e) {
-      showToast("Failed to save to local storage.", "error");
-    }
-  };
+  // ── Auto-save: debounce 1.5s after any change ──
+  useEffect(() => {
+    if (!loaded) return;
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
 
-  // ── LOCAL STORAGE: Load ──
+    setAutoSaveStatus("saving");
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+
+    autoSaveTimer.current = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(getSnapshot()));
+        setAutoSaveStatus("saved");
+        // Return to idle after 2s
+        setTimeout(() => setAutoSaveStatus("idle"), 2000);
+      } catch (e) {
+        setAutoSaveStatus("error");
+        setTimeout(() => setAutoSaveStatus("idle"), 3000);
+      }
+    }, 1500);
+
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  }, [selectedProduct, materials, mealsPerMonth, hourlyRate, hoursSpent, rent, utilities, tools, unitsPerMonth, quantity, marginPct, discountPct, taxPct, products, loaded]);
+
+  // ── Manual local storage ──
   const handleLocalLoad = () => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) { showToast("No saved data found in local storage.", "info"); return; }
+      if (!raw) { showToast("No saved data found.", "info"); return; }
       const saved = JSON.parse(raw);
       applyData(saved);
-      const when = saved.savedAt ? new Date(saved.savedAt).toLocaleString() : "unknown time";
+      const when = saved.savedAt ? new Date(saved.savedAt).toLocaleString() : "unknown";
       showToast(`✓ Loaded! (saved ${when})`, "success");
-    } catch (e) {
-      showToast("Failed to load from local storage.", "error");
-    }
+    } catch (e) { showToast("Failed to load.", "error"); }
   };
 
-  // ── LOCAL STORAGE: Clear ──
   const handleLocalClear = () => {
     if (!window.confirm("Clear saved data from local storage?")) return;
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-      showToast("Local storage cleared.", "info");
-    } catch (e) {
-      showToast("Failed to clear.", "error");
-    }
+    try { localStorage.removeItem(STORAGE_KEY); showToast("Local storage cleared.", "info"); }
+    catch (e) { showToast("Failed to clear.", "error"); }
   };
 
-  // ── JSON: Export ──
+  // ── JSON Export / Import ──
   const handleExportJSON = () => {
     try {
-      const data = JSON.stringify(getSnapshot(), null, 2);
-      const blob = new Blob([data], { type: "application/json" });
+      const blob = new Blob([JSON.stringify(getSnapshot(), null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      const date = new Date().toISOString().slice(0, 10);
       a.href = url;
-      a.download = `mollys_pricing_${date}.json`;
+      a.download = `mollys_pricing_${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
       showToast("✓ JSON file downloaded!", "success");
-    } catch (e) {
-      showToast("Export failed.", "error");
-    }
+    } catch (e) { showToast("Export failed.", "error"); }
   };
 
-  // ── JSON: Import ──
   const handleImportJSON = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        const saved = JSON.parse(ev.target.result);
-        applyData(saved);
+        applyData(JSON.parse(ev.target.result));
         showToast(`✓ Imported from ${file.name}`, "success");
-      } catch (err) {
-        showToast("Invalid JSON file.", "error");
-      }
+      } catch { showToast("Invalid JSON file.", "error"); }
     };
     reader.readAsText(file);
     e.target.value = "";
   };
 
-  // ── Reset all ──
+  // ── Reset ──
   const handleReset = () => {
     if (!window.confirm("Clear all inputs and start fresh?")) return;
-    applyData({ ...DEFAULT_STATE, savedAt: null });
+    applyData({ ...DEFAULT_STATE });
     showToast("Reset complete.", "info");
   };
 
   // ── Calculations ──
   const meals = Math.max(1, parse(mealsPerMonth));
-  const matRowPerMeal  = m => parse(m.totalCost) / meals;
-  const materialTotal  = materials.reduce((s, m) => s + parse(m.totalCost), 0);
+  const matRowPerMeal   = m => parse(m.totalCost) / meals;
+  const materialTotal   = materials.reduce((s, m) => s + parse(m.totalCost), 0);
   const materialPerMeal = materials.reduce((s, m) => s + matRowPerMeal(m), 0);
-  const laborTotal     = parse(hourlyRate) * parse(hoursSpent);
+  const laborTotal      = parse(hourlyRate) * parse(hoursSpent);
   const monthlyOverhead = parse(rent) + parse(utilities) + parse(tools);
   const overheadPerUnit = parse(unitsPerMonth) > 0 ? monthlyOverhead / parse(unitsPerMonth) : 0;
-  const costPerUnit    = materialPerMeal + laborTotal + overheadPerUnit;
-  const marginAmt      = costPerUnit * (parse(marginPct) / 100);
+  const costPerUnit     = materialPerMeal + laborTotal + overheadPerUnit;
+  const marginAmt       = costPerUnit * (parse(marginPct) / 100);
   const priceBeforeDiscount = costPerUnit + marginAmt;
-  const discountAmt    = priceBeforeDiscount * (parse(discountPct) / 100);
+  const discountAmt     = priceBeforeDiscount * (parse(discountPct) / 100);
   const priceAfterDiscount  = priceBeforeDiscount - discountAmt;
-  const taxAmt         = priceAfterDiscount * (parse(taxPct) / 100);
-  const finalPrice     = priceAfterDiscount + taxAmt;
-  const qty            = Math.max(1, parse(quantity));
-  const totalRevenue   = finalPrice * qty;
-  const totalProfit    = totalRevenue - costPerUnit * qty;
+  const taxAmt          = priceAfterDiscount * (parse(taxPct) / 100);
+  const finalPrice      = priceAfterDiscount + taxAmt;
+  const qty             = Math.max(1, parse(quantity));
+  const totalRevenue    = finalPrice * qty;
+  const totalProfit     = totalRevenue - costPerUnit * qty;
   const profitMarginReal = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
-  const breakEven      = marginAmt > 0 ? Math.ceil(monthlyOverhead / marginAmt) : null;
+  const breakEven       = marginAmt > 0 ? Math.ceil(monthlyOverhead / marginAmt) : null;
 
   const addMaterial    = () => setMaterials(m => [...m, { name: "", totalQty: "", unit: "pc", totalCost: "" }]);
   const removeMaterial = i  => setMaterials(m => m.filter((_, idx) => idx !== i));
@@ -315,16 +334,17 @@ export default function PricingCalculator() {
     </div>
   );
 
-  const toastBg = toast?.type === "success" ? GREEN_DARK : toast?.type === "error" ? RED : "#666";
+  const toastBg = toast?.type === "success" ? GREEN_DARK : toast?.type === "error" ? RED : "#555";
 
   return (
     <div style={{ minHeight: "100vh", background: CREAM, fontFamily: "'Nunito',sans-serif", paddingBottom: 60 }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&family=Protest+Riot&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        @keyframes float  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
-        @keyframes slideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes float    { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+        @keyframes slideDown{ from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes fadeUp   { from{opacity:0;transform:translateY(8px)}  to{opacity:1;transform:translateY(0)} }
+        @keyframes pulse    { 0%,100%{opacity:1} 50%{opacity:.4} }
         input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none}
         input[type=number]{-moz-appearance:textfield}
         input[type=range]{accent-color:${GREEN};width:100%;margin-top:8px}
@@ -333,17 +353,15 @@ export default function PricingCalculator() {
         .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
         .grid-stat { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
         .mat-table { width:100%; border-collapse:collapse; }
-        .mat-table th { font-size:10px; font-weight:800; color:#5A5850; letter-spacing:1px; text-transform:uppercase; padding:6px 6px; background:#F5F3EC; border-bottom:2px solid #E0DDD0; text-align:left; white-space:nowrap; }
+        .mat-table th { font-size:10px; font-weight:800; color:#5A5850; letter-spacing:1px; text-transform:uppercase; padding:6px; background:#F5F3EC; border-bottom:2px solid #E0DDD0; text-align:left; white-space:nowrap; }
         .mat-table td { padding:5px 3px; border-bottom:1px solid #F0EEE5; vertical-align:middle; }
         .mat-table tr:last-child td { border-bottom:none; }
         .mat-and-chart { display:grid; grid-template-columns:1fr 190px; gap:16px; align-items:start; }
-        .storage-btn { padding:10px 14px; border-radius:10px; font-weight:800; font-size:12px; cursor:pointer; border:2px solid; transition:opacity .15s; white-space:nowrap; font-family:'Nunito',sans-serif; }
-        .storage-btn:hover { opacity:.85; }
+        .storage-btn { padding:10px 14px; border-radius:10px; font-weight:800; font-size:12px; cursor:pointer; border:2px solid; white-space:nowrap; font-family:'Nunito',sans-serif; }
+        .saving-dot { animation: pulse 1s ease-in-out infinite; }
         @media (max-width:600px) {
-          .grid-3 { grid-template-columns:1fr 1fr; }
-          .grid-2 { grid-template-columns:1fr; }
-          .mat-and-chart { grid-template-columns:1fr; }
-          .storage-panel-grid { grid-template-columns:1fr !important; }
+          .grid-3,.storage-panel-grid { grid-template-columns:1fr 1fr; }
+          .grid-2,.mat-and-chart      { grid-template-columns:1fr; }
         }
         @media (min-width:600px) { .grid-stat { grid-template-columns:repeat(4,1fr); } }
       `}</style>
@@ -355,7 +373,6 @@ export default function PricingCalculator() {
         </div>
       )}
 
-      {/* ── Hidden file input for import ── */}
       <input ref={importRef} type="file" accept=".json" onChange={handleImportJSON} style={{ display: "none" }} />
 
       {/* ── Header ── */}
@@ -365,7 +382,12 @@ export default function PricingCalculator() {
           <div style={{ fontSize: "clamp(9px,2vw,13px)", fontWeight: 900, color: GREEN_DARK, letterSpacing: 4, textTransform: "uppercase" }}>Crumby Corner</div>
         </div>
         <div style={{ fontFamily: "'Protest Riot',cursive", fontSize: "clamp(14px,3vw,22px)", color: GREEN_DARK }}>Pricing Calculator</div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+
+        {/* Right side controls */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {/* Auto-save indicator */}
+          <AutoSaveIndicator status={autoSaveStatus} />
+
           <button onClick={() => setShowStoragePanel(v => !v)}
             style={{ padding: "9px 16px", background: showStoragePanel ? GREEN_DARK : GREEN, border: "none", borderRadius: 10, color: WHITE, fontWeight: 800, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}>
             💾 Save / Load
@@ -387,19 +409,17 @@ export default function PricingCalculator() {
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                 <span style={{ fontSize: 20 }}>🗄️</span>
                 <span style={{ fontFamily: "'Protest Riot',cursive", fontSize: 16, color: WHITE }}>Local Storage</span>
+                <span style={{ marginLeft: "auto", background: GREEN_DARK, color: WHITE, fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 20, letterSpacing: 1 }}>AUTO-SAVE ON</span>
               </div>
               <div style={{ fontSize: 11, color: "#9A9585", marginBottom: 14 }}>
-                Stays saved in your browser. Survives tab/browser close. Cleared if you clear browser data.
+                Automatically saves every time you make a change. Survives tab and browser close.
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button onClick={handleLocalSave} className="storage-btn" style={{ background: GREEN, borderColor: GREEN_DARK, color: WHITE }}>
-                  💾 Save now
-                </button>
                 <button onClick={handleLocalLoad} className="storage-btn" style={{ background: "#3A3A3A", borderColor: "#555", color: WHITE }}>
-                  📂 Load saved
+                  📂 Load last save
                 </button>
                 <button onClick={handleLocalClear} className="storage-btn" style={{ background: "transparent", borderColor: "#993333", color: "#FF6B6B" }}>
-                  🗑 Clear
+                  🗑 Clear storage
                 </button>
               </div>
             </div>
@@ -446,7 +466,6 @@ export default function PricingCalculator() {
       {/* ── Content ── */}
       <div style={{ maxWidth: 960, margin: "0 auto", padding: "24px 14px", display: "flex", flexDirection: "column", gap: 20 }}>
 
-        {/* STAT CARDS */}
         <div className="grid-stat">
           <StatCard label="Cost / meal (COGS)" value={fmt(costPerUnit)} sub="materials + labor + overhead" />
           <StatCard label="💰 Customer pays" value={fmt(finalPrice)} sub="final price per meal" highlight big />
@@ -492,7 +511,7 @@ export default function PricingCalculator() {
           </div>
         </Section>
 
-        {/* MATERIAL COST + DONUT */}
+        {/* MATERIAL + DONUT */}
         <div className="mat-and-chart">
           <Section title="Material Cost" emoji="🧂" note="List all ingredients purchased this month. Cost per meal is auto-calculated.">
             <div style={{ background: "#F0F9E0", border: `2px solid ${GREEN}`, borderRadius: 12, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
