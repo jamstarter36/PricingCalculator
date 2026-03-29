@@ -143,7 +143,7 @@ function StatCard({ label, value, sub, highlight }) {
   );
 }
 
-const DEFAULT_PRODUCTS = ["Chicken Wings", "Matcha Latte", "Ube Pandesal", "Cream Puff", "Biko"];
+const DEFAULT_PRODUCTS = ["Chicken Wings"];
 const UNITS = ["pc", "kg", "g", "ml", "l", "cup", "tbsp", "tsp", "pack", "dozen"];
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -350,7 +350,7 @@ export default function PricingCalculator() {
                 <tbody>
                   {materials.map((m, i) => (
                     <tr key={i}>
-                      <td><TxtInput value={m.name} onChange={v => updateMat(i, "name", v)} placeholder="e.g. Matcha Powder" small /></td>
+                      <td><TxtInput value={m.name} onChange={v => updateMat(i, "name", v)} placeholder="e.g. Meat, Salt, Cooking Oil" small /></td>
                       <td><NumInput value={m.totalQty} onChange={v => updateMat(i, "totalQty", v)} placeholder="0" small /></td>
                       <td>
                         <select value={m.unit} onChange={e => updateMat(i, "unit", e.target.value)}
