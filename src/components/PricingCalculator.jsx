@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 const GREEN = "#8DC63F";
 const GREEN_DARK = "#5A8A1A";
@@ -21,7 +21,6 @@ function DonutChart({ materialTotal, laborTotal, otherTotal }) {
     const ctx = canvas.getContext("2d");
     const size = canvas.width;
     const cx = size / 2, cy = size / 2, r = size * 0.35, lineW = size * 0.16;
-
     ctx.clearRect(0, 0, size, size);
 
     if (total === 0) {
@@ -40,10 +39,9 @@ function DonutChart({ materialTotal, laborTotal, otherTotal }) {
 
     const segments = [
       { value: materialTotal, color: "#C0392B" },
-      { value: laborTotal,   color: "#E8A0A8" },
-      { value: otherTotal,   color: "#F5C6CB" },
+      { value: laborTotal,    color: "#E8A0A8" },
+      { value: otherTotal,    color: "#F5C6CB" },
     ];
-
     let start = -Math.PI / 2;
     segments.forEach(seg => {
       if (seg.value <= 0) return;
@@ -83,7 +81,7 @@ function DonutChart({ materialTotal, laborTotal, otherTotal }) {
   );
 }
 
-// ── Small helpers ─────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 function Label({ children, hint }) {
   return (
     <div style={{ marginBottom: 4 }}>
@@ -97,11 +95,8 @@ function NumInput({ prefix, suffix, value, onChange, placeholder = "0", small })
   return (
     <div style={{ display: "flex", alignItems: "stretch", background: CREAM, border: "2px solid #D8D5C5", borderRadius: 8, overflow: "hidden" }}>
       {prefix && <span style={{ padding: "0 8px", fontSize: 12, fontWeight: 700, color: GREEN_DARK, background: "#E8F5D0", borderRight: "1px solid #D8D5C5", display: "flex", alignItems: "center" }}>{prefix}</span>}
-      <input
-        type="number" min="0" step="any" value={value} placeholder={placeholder}
-        onChange={e => onChange(e.target.value)}
-        style={{ flex: 1, minWidth: 0, padding: small ? "6px 6px" : "8px 8px", border: "none", background: "transparent", fontFamily: "'Fredoka One', cursive", fontSize: small ? 13 : 14, color: DARK, outline: "none", width: "100%" }}
-      />
+      <input type="number" min="0" step="any" value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)}
+        style={{ flex: 1, minWidth: 0, padding: small ? "6px 6px" : "8px 8px", border: "none", background: "transparent", fontFamily: "'Fredoka One', cursive", fontSize: small ? 13 : 14, color: DARK, outline: "none", width: "100%" }} />
       {suffix && <span style={{ padding: "0 8px", fontSize: 11, color: "#9A9585", display: "flex", alignItems: "center", background: CREAM, whiteSpace: "nowrap" }}>{suffix}</span>}
     </div>
   );
@@ -109,31 +104,31 @@ function NumInput({ prefix, suffix, value, onChange, placeholder = "0", small })
 
 function TxtInput({ value, onChange, placeholder, small }) {
   return (
-    <input
-      type="text" value={value} placeholder={placeholder}
-      onChange={e => onChange(e.target.value)}
-      style={{ width: "100%", padding: small ? "6px 8px" : "8px 10px", border: "2px solid #D8D5C5", borderRadius: 8, fontFamily: "'Nunito', sans-serif", fontSize: small ? 12 : 13, color: DARK, background: CREAM, outline: "none", boxSizing: "border-box" }}
-    />
+    <input type="text" value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)}
+      style={{ width: "100%", padding: small ? "6px 8px" : "8px 10px", border: "2px solid #D8D5C5", borderRadius: 8, fontFamily: "'Nunito', sans-serif", fontSize: small ? 12 : 13, color: DARK, background: CREAM, outline: "none", boxSizing: "border-box" }} />
   );
 }
 
-function Section({ title, emoji, children }) {
+function Section({ title, emoji, children, note }) {
   return (
     <div style={{ background: WHITE, border: "2px solid #E0DDD0", borderRadius: 16, overflow: "hidden" }}>
       <div style={{ background: CREAM, borderBottom: "2px solid #E0DDD0", padding: "10px 16px", display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 18 }}>{emoji}</span>
         <span style={{ fontFamily: "'Protest Riot', cursive", fontSize: 18, color: GREEN_DARK }}>{title}</span>
       </div>
-      <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 14 }}>{children}</div>
+      <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 14 }}>
+        {note && <div style={{ fontSize: 11, color: "#9A9585" }}>{note}</div>}
+        {children}
+      </div>
     </div>
   );
 }
 
-function TotalRow({ label, value, highlight }) {
+function TotalRow({ label, value, red }) {
   return (
-    <div style={{ background: highlight ? GREEN : "#F0F9E0", border: `1.5px solid ${highlight ? GREEN_DARK : GREEN}`, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-      <span style={{ fontWeight: 800, fontSize: 13, color: highlight ? WHITE : GREEN_DARK }}>{label}</span>
-      <span style={{ fontFamily: "'Fredoka One', cursive", fontSize: 16, color: highlight ? WHITE : GREEN_DARK, whiteSpace: "nowrap" }}>{value}</span>
+    <div style={{ background: red ? "#FFF0F0" : "#F0F9E0", border: `1.5px solid ${red ? "#F5C0C0" : GREEN}`, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+      <span style={{ fontWeight: 800, fontSize: 13, color: red ? RED : GREEN_DARK }}>{label}</span>
+      <span style={{ fontFamily: "'Fredoka One', cursive", fontSize: 16, color: red ? RED : GREEN_DARK, whiteSpace: "nowrap" }}>{value}</span>
     </div>
   );
 }
@@ -148,20 +143,22 @@ function StatCard({ label, value, sub, highlight }) {
   );
 }
 
-const DEFAULT_PRODUCTS = ["Chicken Wings"];
+const DEFAULT_PRODUCTS = ["Chicken Wings", "Matcha Latte", "Ube Pandesal", "Cream Puff", "Biko"];
 const UNITS = ["pc", "kg", "g", "ml", "l", "cup", "tbsp", "tsp", "pack", "dozen"];
 
-// ── Main Component ────────────────────────────────────────────────────────────
+// ── Main ─────────────────────────────────────────────────────────────────────
 export default function PricingCalculator() {
-  const [selectedProduct, setSelectedProduct] = useState("");
-  const [customProduct, setCustomProduct] = useState("");
-  const [showCustomInput, setShowCustomInput] = useState(false);
-  const [products, setProducts] = useState(DEFAULT_PRODUCTS);
+  const [selectedProduct, setSelectedProduct]   = useState("");
+  const [customProduct, setCustomProduct]       = useState("");
+  const [showCustomInput, setShowCustomInput]   = useState(false);
+  const [products, setProducts]                 = useState(DEFAULT_PRODUCTS);
 
-  // Material rows: { name, qty, unit, costPerUnit, unitsNeeded }
+  // Each row: { name, totalQty, unit, totalCost }
   const [materials, setMaterials] = useState([
-    { name: "", qty: "", unit: "pc", costPerUnit: "", unitsNeeded: "" },
+    { name: "", totalQty: "", unit: "pc", totalCost: "" },
   ]);
+
+  const [mealsPerMonth, setMealsPerMonth] = useState("");   // how many meals made this month
 
   const [hourlyRate, setHourlyRate]       = useState("");
   const [hoursSpent, setHoursSpent]       = useState("");
@@ -174,20 +171,22 @@ export default function PricingCalculator() {
   const [discountPct, setDiscountPct]     = useState("0");
   const [taxPct, setTaxPct]               = useState("0");
 
-  // cost per row = (costPerUnit / qty) * unitsNeeded
-  const matRowTotal = m => {
-    const cpu = parse(m.costPerUnit);
-    const q   = parse(m.qty);
-    const un  = parse(m.unitsNeeded);
-    if (q === 0) return 0;
-    return (cpu / q) * un;
+  const meals = Math.max(1, parse(mealsPerMonth));
+
+  // cost per meal for each row = totalCost / meals
+  const matRowPerMeal = m => {
+    const tc = parse(m.totalCost);
+    return meals > 0 ? tc / meals : 0;
   };
 
-  const materialTotal   = materials.reduce((s, m) => s + matRowTotal(m), 0);
+  const materialTotal   = materials.reduce((s, m) => s + parse(m.totalCost), 0);
+  const materialPerMeal = materials.reduce((s, m) => s + matRowPerMeal(m), 0);
+
   const laborTotal      = parse(hourlyRate) * parse(hoursSpent);
   const monthlyOverhead = parse(rent) + parse(utilities) + parse(tools);
   const overheadPerUnit = parse(unitsPerMonth) > 0 ? monthlyOverhead / parse(unitsPerMonth) : 0;
-  const costPerUnit     = materialTotal + laborTotal + overheadPerUnit;
+
+  const costPerUnit     = materialPerMeal + laborTotal + overheadPerUnit;
   const marginAmt       = costPerUnit * (parse(marginPct) / 100);
   const priceBeforeDiscount = costPerUnit + marginAmt;
   const discountAmt     = priceBeforeDiscount * (parse(discountPct) / 100);
@@ -196,12 +195,11 @@ export default function PricingCalculator() {
   const finalPrice      = priceAfterDiscount + taxAmt;
   const qty             = Math.max(1, parse(quantity));
   const totalRevenue    = finalPrice * qty;
-  const totalCost       = costPerUnit * qty;
-  const totalProfit     = totalRevenue - totalCost;
+  const totalProfit     = totalRevenue - costPerUnit * qty;
   const profitMarginReal = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
   const breakEven       = marginAmt > 0 ? Math.ceil(monthlyOverhead / marginAmt) : null;
 
-  const addMaterial    = () => setMaterials(m => [...m, { name: "", qty: "", unit: "pc", costPerUnit: "", unitsNeeded: "" }]);
+  const addMaterial    = () => setMaterials(m => [...m, { name: "", totalQty: "", unit: "pc", totalCost: "" }]);
   const removeMaterial = i  => setMaterials(m => m.filter((_, idx) => idx !== i));
   const updateMat      = (i, f, v) => setMaterials(m => m.map((item, idx) => idx === i ? { ...item, [f]: v } : item));
 
@@ -232,9 +230,9 @@ export default function PricingCalculator() {
         .mat-table tr:last-child td { border-bottom: none; }
         .mat-and-chart { display: grid; grid-template-columns: 1fr 190px; gap: 16px; align-items: start; }
         @media (max-width: 600px) {
-          .grid-3       { grid-template-columns: 1fr 1fr; }
-          .grid-2       { grid-template-columns: 1fr; }
-          .mat-and-chart{ grid-template-columns: 1fr; }
+          .grid-3        { grid-template-columns: 1fr 1fr; }
+          .grid-2        { grid-template-columns: 1fr; }
+          .mat-and-chart { grid-template-columns: 1fr; }
         }
         @media (min-width: 600px) {
           .grid-stat { grid-template-columns: repeat(4, 1fr); }
@@ -250,7 +248,7 @@ export default function PricingCalculator() {
         <div style={{ fontFamily: "'Protest Riot', cursive", fontSize: "clamp(14px,3vw,22px)", color: GREEN_DARK }}>Pricing Calculator</div>
       </div>
 
-      {/* ── COGS Summary Bar ── */}
+      {/* ── COGS Bar ── */}
       <div style={{ background: WHITE, borderBottom: "2px solid #E0DDD0", padding: "10px 20px", display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
         <span style={{ fontSize: 11, color: "#9A9585", fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" }}>Total cost of producing 1 product</span>
         <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#FFF0F0", border: "2px solid #F5C0C0", borderRadius: 10, padding: "7px 14px" }}>
@@ -271,31 +269,27 @@ export default function PricingCalculator() {
 
         {/* STAT CARDS */}
         <div className="grid-stat">
-          <StatCard label="Cost / unit" value={fmt(costPerUnit)} sub="materials + labor + overhead" />
+          <StatCard label="Cost / meal" value={fmt(costPerUnit)} sub="materials + labor + overhead" />
           <StatCard label="Selling price" value={fmt(finalPrice)} sub="after discount & tax" highlight />
-          <StatCard label="Profit / unit" value={fmt(finalPrice - costPerUnit)} sub={`${profitMarginReal.toFixed(1)}% margin`} />
+          <StatCard label="Profit / meal" value={fmt(finalPrice - costPerUnit)} sub={`${profitMarginReal.toFixed(1)}% margin`} />
           <StatCard label={`Total ×${qty}`} value={fmt(totalRevenue)} sub={`${fmt(totalProfit)} profit`} />
         </div>
 
-        {/* ── SELECT PRODUCT ── */}
-        <Section title="Select Product" emoji="🏷️">
-          <div style={{ fontSize: 11, color: "#C0392B", fontWeight: 700 }}>Reminder: Register products in the Products Dashboard.</div>
+        {/* SELECT PRODUCT */}
+        <Section title="Select Product" emoji="🏷️" note="Reminder: Register products in the Products Dashboard.">
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
             <div style={{ flex: 1, minWidth: 200 }}>
               <Label>Product</Label>
-              <select
-                value={selectedProduct}
-                onChange={e => setSelectedProduct(e.target.value)}
-                style={{ width: "100%", padding: "10px 12px", border: "2px solid #D8D5C5", borderRadius: 10, fontFamily: "'Nunito', sans-serif", fontSize: 14, color: selectedProduct ? DARK : "#9A9585", background: CREAM, outline: "none" }}
-              >
+              <select value={selectedProduct} onChange={e => setSelectedProduct(e.target.value)}
+                style={{ width: "100%", padding: "10px 12px", border: "2px solid #D8D5C5", borderRadius: 10, fontFamily: "'Nunito', sans-serif", fontSize: 14, color: selectedProduct ? DARK : "#9A9585", background: CREAM, outline: "none" }}>
                 <option value="">— Select a product —</option>
                 {products.map((p, i) => <option key={i} value={p}>{p}</option>)}
               </select>
             </div>
-            <button
-              onClick={() => setShowCustomInput(v => !v)}
-              style={{ padding: "10px 16px", border: `2px dashed ${GREEN}`, borderRadius: 10, background: "#F0F9E0", color: GREEN_DARK, fontSize: 12, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}
-            >+ New product</button>
+            <button onClick={() => setShowCustomInput(v => !v)}
+              style={{ padding: "10px 16px", border: `2px dashed ${GREEN}`, borderRadius: 10, background: "#F0F9E0", color: GREEN_DARK, fontSize: 12, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}>
+              + New product
+            </button>
           </div>
           {showCustomInput && (
             <div style={{ display: "flex", gap: 8 }}>
@@ -306,12 +300,11 @@ export default function PricingCalculator() {
           )}
         </Section>
 
-        {/* ── PRICING SETTINGS ── */}
-        <Section title="Pricing Settings" emoji="📊">
-          <div style={{ fontSize: 11, color: "#9A9585" }}>Note: Discount and Sales Tax are optional.</div>
+        {/* PRICING SETTINGS */}
+        <Section title="Pricing Settings" emoji="📊" note="Note: Discount and Sales Tax are optional.">
           <div className="grid-3">
             <div>
-              <Label hint={`= ${fmt(marginAmt)}/unit`}>Profit margin %</Label>
+              <Label hint={`= ${fmt(marginAmt)}/meal`}>Profit margin %</Label>
               <NumInput suffix="%" value={marginPct} onChange={setMarginPct} />
               <input type="range" min="0" max="100" step="1" value={marginPct} onChange={e => setMarginPct(e.target.value)} />
             </div>
@@ -326,57 +319,55 @@ export default function PricingCalculator() {
           </div>
         </Section>
 
-        {/* ── MATERIAL COST TABLE + DONUT side by side ── */}
+        {/* MATERIAL COST TABLE + DONUT */}
         <div className="mat-and-chart">
-          {/* Left: material table */}
-          <Section title="Material Cost" emoji="🧂">
-            <div style={{ fontSize: 11, color: "#9A9585" }}>Enter all materials you've used to produce 1 product.</div>
+          <Section title="Material Cost" emoji="🧂" note="List all ingredients purchased this month. The cost per meal is auto-calculated.">
+
+            {/* Meals per month input — KEY input */}
+            <div style={{ background: "#F0F9E0", border: `2px solid ${GREEN}`, borderRadius: 12, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <Label>Meals / products made this month</Label>
+                <NumInput suffix="meals" value={mealsPerMonth} onChange={setMealsPerMonth} placeholder="e.g. 200" />
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#9A9585", letterSpacing: 1, textTransform: "uppercase", marginBottom: 2 }}>Material cost per meal</div>
+                <div style={{ fontFamily: "'Protest Riot', cursive", fontSize: 24, color: GREEN_DARK }}>{fmt(materialPerMeal)}</div>
+              </div>
+            </div>
+
             <div style={{ overflowX: "auto" }}>
               <table className="mat-table">
                 <thead>
                   <tr>
-                    <th style={{ minWidth: 110 }}>List of Ingredients</th>
-                    <th style={{ width: 60 }}>#</th>
+                    <th style={{ minWidth: 120 }}>Ingredient</th>
+                    <th style={{ width: 70 }}>Total Qty</th>
                     <th style={{ width: 72 }}>Unit</th>
-                    <th style={{ width: 95 }}>Cost/Unit</th>
-                    <th style={{ width: 95 }}>Units Needed</th>
-                    <th style={{ width: 85 }}>Total Cost</th>
+                    <th style={{ width: 105 }}>Total Cost</th>
+                    <th style={{ width: 100 }}>Cost / Meal</th>
                     <th style={{ width: 32 }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {materials.map((m, i) => (
                     <tr key={i}>
-                      <td><TxtInput value={m.name} onChange={v => updateMat(i, "name", v)} placeholder="Ingredient" small /></td>
-                      <td><NumInput value={m.qty} onChange={v => updateMat(i, "qty", v)} placeholder="0" small /></td>
+                      <td><TxtInput value={m.name} onChange={v => updateMat(i, "name", v)} placeholder="e.g. Matcha Powder" small /></td>
+                      <td><NumInput value={m.totalQty} onChange={v => updateMat(i, "totalQty", v)} placeholder="0" small /></td>
                       <td>
-                        <select
-                          value={m.unit}
-                          onChange={e => updateMat(i, "unit", e.target.value)}
-                          style={{ width: "100%", padding: "6px 8px", border: "2px solid #D8D5C5", borderRadius: 8, fontFamily: "'Nunito', sans-serif", fontSize: 12, color: DARK, background: CREAM, outline: "none" }}
-                        >
+                        <select value={m.unit} onChange={e => updateMat(i, "unit", e.target.value)}
+                          style={{ width: "100%", padding: "6px 8px", border: "2px solid #D8D5C5", borderRadius: 8, fontFamily: "'Nunito', sans-serif", fontSize: 12, color: DARK, background: CREAM, outline: "none" }}>
                           {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                         </select>
                       </td>
                       <td>
                         <div style={{ display: "flex", alignItems: "stretch", background: CREAM, border: "2px solid #D8D5C5", borderRadius: 8, overflow: "hidden" }}>
                           <span style={{ padding: "0 5px", fontSize: 11, fontWeight: 700, color: GREEN_DARK, background: "#E8F5D0", borderRight: "1px solid #D8D5C5", display: "flex", alignItems: "center" }}>₱</span>
-                          <input type="number" min="0" step="any" value={m.costPerUnit} placeholder="0"
-                            onChange={e => updateMat(i, "costPerUnit", e.target.value)}
+                          <input type="number" min="0" step="any" value={m.totalCost} placeholder="0" onChange={e => updateMat(i, "totalCost", e.target.value)}
                             style={{ flex: 1, minWidth: 0, padding: "6px 5px", border: "none", background: "transparent", fontFamily: "'Fredoka One', cursive", fontSize: 13, color: DARK, outline: "none", width: "100%" }} />
                         </div>
                       </td>
                       <td>
-                        <div style={{ display: "flex", alignItems: "stretch", background: CREAM, border: "2px solid #D8D5C5", borderRadius: 8, overflow: "hidden" }}>
-                          <input type="number" min="0" step="any" value={m.unitsNeeded} placeholder="0"
-                            onChange={e => updateMat(i, "unitsNeeded", e.target.value)}
-                            style={{ flex: 1, minWidth: 0, padding: "6px 5px", border: "none", background: "transparent", fontFamily: "'Fredoka One', cursive", fontSize: 13, color: DARK, outline: "none", width: "100%" }} />
-                          <span style={{ padding: "0 5px", fontSize: 10, color: "#9A9585", display: "flex", alignItems: "center", background: CREAM, whiteSpace: "nowrap" }}>{m.unit}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ fontFamily: "'Fredoka One', cursive", fontSize: 13, color: GREEN_DARK, textAlign: "right", paddingRight: 4, whiteSpace: "nowrap" }}>
-                          {fmt(matRowTotal(m))}
+                        <div style={{ fontFamily: "'Fredoka One', cursive", fontSize: 13, color: GREEN_DARK, textAlign: "right", paddingRight: 4, whiteSpace: "nowrap", background: "#F0F9E0", borderRadius: 6, padding: "4px 8px" }}>
+                          {fmt(matRowPerMeal(m))}
                         </div>
                       </td>
                       <td>
@@ -389,20 +380,26 @@ export default function PricingCalculator() {
                 </tbody>
               </table>
             </div>
+
             <button onClick={addMaterial} style={{ padding: "7px 14px", border: `2px dashed ${GREEN}`, borderRadius: 10, background: "#F0F9E0", color: GREEN_DARK, fontSize: 12, fontWeight: 800, cursor: "pointer", alignSelf: "flex-start" }}>
               + Add ingredient
             </button>
-            <TotalRow label="Materials total" value={fmt(materialTotal)} />
+
+            {/* Monthly totals summary */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <TotalRow label="Total monthly spend" value={fmt(materialTotal)} />
+              <TotalRow label="Material cost / meal" value={fmt(materialPerMeal)} />
+            </div>
           </Section>
 
-          {/* Right: donut chart */}
+          {/* Donut */}
           <div style={{ background: WHITE, border: "2px solid #E0DDD0", borderRadius: 16, padding: "16px" }}>
             <div style={{ fontFamily: "'Protest Riot', cursive", fontSize: 15, color: GREEN_DARK, marginBottom: 12, textAlign: "center" }}>Costing Breakdown</div>
-            <DonutChart materialTotal={materialTotal} laborTotal={laborTotal} otherTotal={overheadPerUnit} />
+            <DonutChart materialTotal={materialPerMeal} laborTotal={laborTotal} otherTotal={overheadPerUnit} />
           </div>
         </div>
 
-        {/* 2. LABOR */}
+        {/* LABOR */}
         <Section title="Labor / Time Spent" emoji="⏱️">
           <div className="grid-2">
             <div>
@@ -410,14 +407,14 @@ export default function PricingCalculator() {
               <NumInput prefix="₱" suffix="/hr" value={hourlyRate} onChange={setHourlyRate} />
             </div>
             <div>
-              <Label hint="per batch/unit">Hours spent</Label>
+              <Label hint="per meal/unit">Hours spent</Label>
               <NumInput suffix="hrs" value={hoursSpent} onChange={setHoursSpent} />
             </div>
           </div>
-          <TotalRow label="Labor total" value={fmt(laborTotal)} />
+          <TotalRow label="Labor cost per meal" value={fmt(laborTotal)} />
         </Section>
 
-        {/* 3. OVERHEAD */}
+        {/* OVERHEAD */}
         <Section title="Overhead" emoji="🏠">
           <div className="grid-3">
             <div><Label hint="monthly">Rent</Label><NumInput prefix="₱" value={rent} onChange={setRent} /></div>
@@ -446,13 +443,13 @@ export default function PricingCalculator() {
           </div>
           <div style={{ padding: "18px 16px", display: "flex", flexDirection: "column", gap: 0 }}>
 
-            {/* Product Costing table */}
+            {/* Product costing */}
             <div style={{ background: CREAM, borderRadius: 12, padding: "12px 16px", marginBottom: 12, border: "2px solid #E0DDD0" }}>
               <div style={{ fontFamily: "'Protest Riot', cursive", fontSize: 15, color: GREEN_DARK, marginBottom: 8 }}>Product Costing</div>
               {[
-                { label: "Material Cost", value: fmt(materialTotal) },
-                { label: "Labor Cost",    value: fmt(laborTotal) },
-                { label: "Other Expenses", value: fmt(overheadPerUnit) },
+                { label: "Material Cost (per meal)", value: fmt(materialPerMeal) },
+                { label: "Labor Cost",               value: fmt(laborTotal) },
+                { label: "Other Expenses",            value: fmt(overheadPerUnit) },
               ].map((r, i) => (
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: i < 2 ? "1px solid #E0DDD0" : "none", gap: 8 }}>
                   <span style={{ fontSize: 13, color: "#6B6860" }}>{r.label}</span>
@@ -461,17 +458,17 @@ export default function PricingCalculator() {
               ))}
             </div>
 
-            {/* COGS row */}
+            {/* COGS */}
             <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "#FFF0F0", borderRadius: 8, marginBottom: 8, gap: 8 }}>
-              <span style={{ fontSize: 14, fontWeight: 800, color: RED }}>COGS (cost per unit)</span>
+              <span style={{ fontSize: 14, fontWeight: 800, color: RED }}>COGS (cost per meal)</span>
               <span style={{ fontFamily: "'Fredoka One', cursive", fontSize: 16, color: RED, whiteSpace: "nowrap" }}>{fmt(costPerUnit)}</span>
             </div>
 
             {/* Adjustments */}
             {[
-              { label: `Discount (${discountPct}%)`, value: `−${fmt(discountAmt)}`, color: parse(discountPct) > 0 ? RED : "#C0BBAD" },
-              { label: `Profit (${marginPct}%)`,     value: fmt(marginAmt),          color: GREEN_DARK },
-              { label: `Tax (${taxPct}%)`,            value: `+${fmt(taxAmt)}`,       color: parse(taxPct) > 0 ? DARK : "#C0BBAD" },
+              { label: `Discount (${discountPct}%)`,  value: `−${fmt(discountAmt)}`, color: parse(discountPct) > 0 ? RED : "#C0BBAD" },
+              { label: `Profit (${marginPct}%)`,       value: fmt(marginAmt),         color: GREEN_DARK },
+              { label: `Tax / VAT (${taxPct}%)`,       value: `+${fmt(taxAmt)}`,      color: parse(taxPct) > 0 ? DARK : "#C0BBAD" },
             ].map((r, i) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", borderBottom: "1px solid #F0EEE5", gap: 8 }}>
                 <span style={{ fontSize: 13, color: "#6B6860" }}>{r.label}</span>
@@ -479,11 +476,11 @@ export default function PricingCalculator() {
               </div>
             ))}
 
-            {/* Final selling price */}
+            {/* Final price */}
             <div style={{ background: GREEN, borderRadius: 12, padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, gap: 8, flexWrap: "wrap" }}>
               <div>
                 <div style={{ fontFamily: "'Protest Riot', cursive", fontSize: "clamp(16px,4vw,20px)", color: WHITE }}>Final Selling Price</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 2 }}>per unit</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 2 }}>per meal / unit</div>
               </div>
               <div style={{ fontFamily: "'Protest Riot', cursive", fontSize: "clamp(28px,8vw,36px)", color: WHITE }}>{fmt(finalPrice)}</div>
             </div>
